@@ -30,7 +30,8 @@ static __init int numa_parse_early_param(char *opt)
 		return -EINVAL;
 	if (str_has_prefix(opt, "off"))
 		numa_off = true;
-
+	if (!strncmp(opt, "fake=", 5))
+		arch_numa_emu_cmdline(opt + 5);
 	return 0;
 }
 early_param("numa", numa_parse_early_param);
@@ -471,7 +472,8 @@ void __init arch_numa_init(void)
 			return;
 		if (acpi_disabled && !numa_init(of_numa_init))
 			return;
+		if (!numa_init(arch_numa_emu_init))
+			return;
 	}
-
 	numa_init(dummy_numa_init);
 }

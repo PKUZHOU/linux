@@ -209,6 +209,11 @@ static inline void __next_physmem_range(u64 *idx, struct memblock_type *type,
 	     __next_mem_range_rev(&i, nid, flags, type_a, type_b,	\
 				  p_start, p_end, p_nid))
 
+#define for_each_memblock(memblock_type, region)					\
+	for (region = memblock.memblock_type.regions;					\
+	     region < (memblock.memblock_type.regions + memblock.memblock_type.cnt);	\
+	     region++)
+
 /**
  * for_each_mem_range - iterate through memory areas.
  * @i: u64 used as loop variable

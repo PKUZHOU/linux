@@ -30,6 +30,15 @@ static inline const struct cpumask *cpumask_of_node(int node)
 }
 #endif
 
+#ifdef CONFIG_NUMA_EMU
+void arch_numa_emu_cmdline(char *str);
+extern int arch_numa_emu_init(void);
+#else 
+static inline void arch_numa_emu_cmdline(char *str) { }
+static inline int arch_numa_emu_init(void) { return -1; }
+#endif /* CONFIG_NUMA_EMU */
+
+
 void __init arch_numa_init(void);
 int __init numa_add_memblk(int nodeid, u64 start, u64 end);
 void __init numa_set_distance(int from, int to, int distance);

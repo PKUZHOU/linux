@@ -363,6 +363,15 @@ config NUMA
 	  The kernel will try to allocate memory used by a CPU on the
 	  local memory of the CPU and add some more NUMA awareness to the kernel.
 
+config NUMA_EMU
+	bool "NUMA emulation"
+	depends on NUMA
+	help
+	  Enable NUMA emulation. A flat machine will be split into virtual
+	  nodes when booted with "numa=fake=N", where N is the number of
+	  nodes, the system RAM will be split into N equal chunks, and
+	  assigned to each node.
+
 config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)"
 	range 1 10
