@@ -1,0 +1,4 @@
+config EXT_MEM
+	bool "Set numa node 1 as external memory"
+    default n
+    

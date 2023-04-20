@@ -1,0 +1,1 @@
+obj-$(CONFIG_EXT_MEM) += extmem.o
