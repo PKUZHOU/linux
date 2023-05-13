@@ -2,6 +2,7 @@
 #include <linux/node.h>
 #include <linux/mmzone.h>
 #include <linux/compaction.h>
+#include <linux/page-flags.h>
 /*
  * The order of these masks is important. Matching masks will be seen
  * first and the left over flags will end up showing by themselves.
@@ -103,6 +104,13 @@
 #define IF_HAVE_PG_SKIP_KASAN_POISON(flag,string)
 #endif
 
+#if defined(CONFIG_NUMA_BALANCING) && defined(CONFIG_64BIT)
+#define IF_HAVE_PG_DEMOTED(flag, string) ,{1UL << flag, string}
+#else
+#define IF_HAVE_PG_DEMOTED(flag, string)
+#endif
+
+
 #define __def_pageflag_names						\
 	{1UL << PG_locked,		"locked"	},		\
 	{1UL << PG_waiters,		"waiters"	},		\
@@ -132,7 +140,8 @@ IF_HAVE_PG_IDLE(PG_young,		"young"		)		\
 IF_HAVE_PG_IDLE(PG_idle,		"idle"		)		\
 IF_HAVE_PG_ARCH_X(PG_arch_2,		"arch_2"	)		\
 IF_HAVE_PG_ARCH_X(PG_arch_3,		"arch_3"	)		\
-IF_HAVE_PG_SKIP_KASAN_POISON(PG_skip_kasan_poison, "skip_kasan_poison")
+IF_HAVE_PG_SKIP_KASAN_POISON(PG_skip_kasan_poison, "skip_kasan_poison") \
+IF_HAVE_PG_DEMOTED(PG_demoted,		"demoted")
 
 #define show_page_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\

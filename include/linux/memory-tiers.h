@@ -32,6 +32,8 @@ struct memory_dev_type {
 
 #ifdef CONFIG_NUMA
 extern bool numa_demotion_enabled;
+extern bool numa_promotion_tiered_enabled;
+extern void check_toptier_balanced(void);
 struct memory_dev_type *alloc_memory_type(int adistance);
 void destroy_memory_type(struct memory_dev_type *memtype);
 void init_node_memory_type(int node, struct memory_dev_type *default_type);

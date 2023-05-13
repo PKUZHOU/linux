@@ -55,6 +55,8 @@
 #include "sched.h"
 #include "stats.h"
 #include "autogroup.h"
+#include <trace/events/sched.h>
+#include <linux/mempolicy.h>
 
 /*
  * Targeted preemption latency for CPU-bound tasks:
@@ -1566,11 +1568,29 @@ static void numa_promotion_adjust_threshold(struct pglist_data *pgdat,
 }
 
 bool should_numa_migrate_memory(struct task_struct *p, struct page * page,
-				int src_nid, int dst_cpu)
+				int src_nid, int dst_cpu, int flags)
 {
 	struct numa_group *ng = deref_curr_numa_group(p);
 	int dst_nid = cpu_to_node(dst_cpu);
 	int last_cpupid, this_cpupid;
+
+	count_vm_numa_event(PGPROMOTE_CANDIDATE_TPP);
+
+	if (numa_demotion_enabled && (flags & TNF_DEMOTED))
+ 		count_vm_numa_event(PGPROMOTE_CANDIDATE_DEMOTED);
+
+	if (page_is_file_lru(page))
+		count_vm_numa_event(PGPROMOTE_CANDIDATE_FILE);
+	else
+		count_vm_numa_event(PGPROMOTE_CANDIDATE_ANON);
+
+	/*
+	 * The pages in non-toptier memory node should be migrated
+	 * according to hot/cold instead of accessing CPU node.
+	 */
+	if (numa_promotion_tiered_enabled && !node_is_toptier(src_nid))
+		return true;
+
 
 	/*
 	 * The pages in slow memory node should be migrated according
@@ -11677,6 +11697,7 @@ void trigger_load_balance(struct rq *rq)
 		raise_softirq(SCHED_SOFTIRQ);
 
 	nohz_balancer_kick(rq);
+	check_toptier_balanced();
 }
 
 static void rq_online_fair(struct rq *rq)
