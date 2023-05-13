@@ -1,0 +1,12 @@
+--- include/linux/page-flags.h
++++ include/linux/page-flags.h
+@@ -137,6 +137,9 @@ enum pageflags {
+ #endif
+ #ifdef CONFIG_64BIT
+ 	PG_arch_2,
++#ifdef CONFIG_NUMA_BALANCING
++	PG_demoted,
++#endif
+ #endif
+ 	__NR_PAGEFLAGS,
+ 

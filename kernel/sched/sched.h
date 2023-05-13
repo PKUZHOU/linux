@@ -21,6 +21,9 @@
 #include <linux/sched/task.h>
 #include <linux/sched/topology.h>
 
+#include <linux/mm_inline.h>
+#include <linux/mempolicy.h>
+
 #include <linux/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/bug.h>

@@ -24,6 +24,8 @@
 #include <linux/freezer.h>
 #include <linux/pfn_t.h>
 #include <linux/mman.h>
+#include <linux/mempolicy.h>
+#include <linux/memory-tiers.h>
 #include <linux/memremap.h>
 #include <linux/pagemap.h>
 #include <linux/debugfs.h>
@@ -1877,6 +1879,8 @@ int change_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 
 		page = pmd_page(*pmd);
 		toptier = node_is_toptier(page_to_nid(page));
+		if (numa_promotion_tiered_enabled && node_is_toptier(page_to_nid(page)))
+			goto unlock;
 		/*
 		 * Skip scanning top tier node if normal numa
 		 * balancing is disabled

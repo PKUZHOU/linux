@@ -1,0 +1,11 @@
+--- mm/vmstat.c
++++ mm/vmstat.c
+@@ -1261,6 +1261,8 @@ const char * const vmstat_text[] = {
+ 	"pgsteal_direct",
+ 	"pgdemote_kswapd",
+ 	"pgdemote_direct",
++	"pgdemote_file",
++	"pgdemote_anon",
+ 	"pgscan_kswapd",
+ 	"pgscan_direct",
+ 	"pgscan_direct_throttle",

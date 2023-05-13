@@ -52,6 +52,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		PGSCAN_FILE,
 		PGSTEAL_ANON,
 		PGSTEAL_FILE,
+		PGDEMOTE_FILE,
+		PGDEMOTE_ANON,
 #ifdef CONFIG_NUMA
 		PGSCAN_ZONE_RECLAIM_FAILED,
 #endif
@@ -66,9 +68,20 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		NUMA_HINT_FAULTS,
 		NUMA_HINT_FAULTS_LOCAL,
 		NUMA_PAGE_MIGRATE,
+		PGPROMOTE_CANDIDATE_TPP,		/* candidates get selected for promotion */
+		PGPROMOTE_CANDIDATE_DEMOTED,/* promotion candidate that got demoted earlier */
+		PGPROMOTE_CANDIDATE_ANON,	/* promotion candidate that are anon */
+		PGPROMOTE_CANDIDATE_FILE,	/* promotion candidate that are file */
+		PGPROMOTE_TRIED,			/* tried to migrate via NUMA balancing */
+		PGPROMOTE_FILE,				/* successfully promoted file pages  */
+		PGPROMOTE_ANON,				/* successfully promoted anon pages  */
 #endif
 #ifdef CONFIG_MIGRATION
 		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
+		PGMIGRATE_DST_NODE_FULL_FAIL,	/* failed as the target node is full */
+		PGMIGRATE_NUMA_ISOLATE_FAIL,	/* failed in isolating numa page */
+		PGMIGRATE_NOMEM_FAIL,			/* failed as no memory left */
+		PGMIGRATE_REFCOUNT_FAIL,		/* failed in ref count */
 		THP_MIGRATION_SUCCESS,
 		THP_MIGRATION_FAIL,
 		THP_MIGRATION_SPLIT,

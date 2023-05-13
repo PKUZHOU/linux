@@ -1,0 +1,11 @@
+--- include/linux/vm_event_item.h
++++ include/linux/vm_event_item.h
+@@ -35,6 +35,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		PGSTEAL_DIRECT,
+ 		PGDEMOTE_KSWAPD,
+ 		PGDEMOTE_DIRECT,
++		PGDEMOTE_FILE,
++		PGDEMOTE_ANON,
+ 		PGSCAN_KSWAPD,
+ 		PGSCAN_DIRECT,
+ 		PGSCAN_DIRECT_THROTTLE,

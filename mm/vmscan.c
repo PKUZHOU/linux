@@ -40,6 +40,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/memcontrol.h>
+#include <linux/mempolicy.h>
 #include <linux/migrate.h>
 #include <linux/delayacct.h>
 #include <linux/sysctl.h>
@@ -202,6 +203,7 @@ static void set_task_reclaim_state(struct task_struct *task,
 
 LIST_HEAD(shrinker_list);
 DECLARE_RWSEM(shrinker_rwsem);
+int demote_scale_factor = 200;
 
 #ifdef CONFIG_MEMCG
 static int shrinker_nr_max;
@@ -720,6 +722,7 @@ int register_shrinker(struct shrinker *shrinker, const char *fmt, ...)
 {
 	va_list ap;
 	int err;
+	bool file_lru;
 
 	va_start(ap, fmt);
 	shrinker->name = kvasprintf_const(GFP_KERNEL, fmt, ap);
@@ -1604,6 +1607,7 @@ static unsigned int demote_folio_list(struct list_head *demote_folios,
 	int target_nid = next_demotion_node(pgdat->node_id);
 	unsigned int nr_succeeded;
 	nodemask_t allowed_mask;
+	bool file_lru;
 
 	struct migration_target_control mtc = {
 		/*
@@ -1625,12 +1629,19 @@ static unsigned int demote_folio_list(struct list_head *demote_folios,
 
 	node_get_allowed_targets(pgdat, &allowed_mask);
 
+	file_lru = folio_is_file_lru(lru_to_folio(demote_folios));
+
 	/* Demotion ignores all cpuset and mempolicy settings */
 	migrate_pages(demote_folios, alloc_demote_page, NULL,
 		      (unsigned long)&mtc, MIGRATE_ASYNC, MR_DEMOTION,
 		      &nr_succeeded);
 
 	__count_vm_events(PGDEMOTE_KSWAPD + reclaimer_offset(), nr_succeeded);
+
+	if (file_lru)
+		__count_vm_events(PGDEMOTE_FILE, nr_succeeded);
+	else
+		__count_vm_events(PGDEMOTE_ANON, nr_succeeded);
 
 	return nr_succeeded;
 }
@@ -2920,7 +2931,10 @@ static void prepare_scan_count(pg_data_t *pgdat, struct scan_control *sc)
 			if (!managed_zone(zone))
 				continue;
 
-			total_high_wmark += high_wmark_pages(zone);
+			if (numa_promotion_tiered_enabled && node_is_toptier(pgdat->node_id))
+				total_high_wmark += demote_wmark_pages(zone);
+			else
+				total_high_wmark += high_wmark_pages(zone);
 		}
 
 		/*
@@ -2958,10 +2972,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	enum lru_list lru;
 
 	/* If we have no swap space, do not bother scanning anon folios. */
-	if (!sc->may_swap || !can_reclaim_anon_pages(memcg, pgdat->node_id, sc)) {
-		scan_balance = SCAN_FILE;
-		goto out;
-	}
+	// if (!sc->may_swap || !can_reclaim_anon_pages(memcg, pgdat->node_id, sc)) {
+	// 	scan_balance = SCAN_FILE;
+	// 	goto out;
+	// }
+	if (!numa_promotion_tiered_enabled &&
+		(!sc->may_swap || !can_reclaim_anon_pages(memcg, pgdat->node_id, sc))) {
+ 		scan_balance = SCAN_FILE;
+ 		goto out;
+ 	}
 
 	/*
 	 * Global reclaim will swap to prevent OOM even with no
@@ -7155,6 +7174,9 @@ static bool pgdat_balanced(pg_data_t *pgdat, int order, int highest_zoneidx)
 	unsigned long mark = -1;
 	struct zone *zone;
 
+	if (numa_promotion_tiered_enabled && node_is_toptier(pgdat->node_id) &&
+			highest_zoneidx >= ZONE_NORMAL)
+		return pgdat_toptier_balanced(pgdat, 0, highest_zoneidx);
 	/*
 	 * Check watermarks bottom-up as lower zones are more likely to
 	 * meet watermarks.
@@ -7182,6 +7204,30 @@ static bool pgdat_balanced(pg_data_t *pgdat, int order, int highest_zoneidx)
 		return true;
 
 	return false;
+}
+
+bool pgdat_toptier_balanced(pg_data_t *pgdat, int order, int zone_idx)
+{
+	unsigned long mark;
+	struct zone *zone;
+
+	if (!node_is_toptier(pgdat->node_id) ||
+		!numa_promotion_tiered_enabled ||
+		order > 0 || zone_idx < ZONE_NORMAL) {
+		return true;
+	}
+
+	zone = pgdat->node_zones + ZONE_NORMAL;
+
+	if (!managed_zone(zone))
+		return true;
+
+	mark = min(demote_wmark_pages(zone), zone_managed_pages(zone));
+
+	if (zone_page_state(zone, NR_FREE_PAGES) < mark)
+		return false;
+
+	return true;
 }
 
 /* Clear pgdat state for congested, dirty or under writeback. */
@@ -7252,7 +7298,10 @@ static bool kswapd_shrink_node(pg_data_t *pgdat,
 		if (!managed_zone(zone))
 			continue;
 
-		sc->nr_to_reclaim += max(high_wmark_pages(zone), SWAP_CLUSTER_MAX);
+		if (numa_promotion_tiered_enabled && node_is_toptier(pgdat->node_id))
+			sc->nr_to_reclaim += max(demote_wmark_pages(zone), SWAP_CLUSTER_MAX);
+		else
+			sc->nr_to_reclaim += max(high_wmark_pages(zone), SWAP_CLUSTER_MAX);
 	}
 
 	/*
@@ -7615,8 +7664,23 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_o
 		 */
 		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
 
-		if (!kthread_should_stop())
-			schedule();
+		if (!kthread_should_stop()) {
+			/*
+			 * In numa promotion modes, try harder to recover from
+			 * kswapd failures, because direct reclaiming may be
+			 * not triggered.
+			 */
+			if (numa_promotion_tiered_enabled &&
+						node_is_toptier(pgdat->node_id) &&
+					pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES) {
+				remaining = schedule_timeout(10 * HZ);
+				if (!remaining) {
+					pgdat->kswapd_highest_zoneidx = ZONE_MOVABLE;
+					pgdat->kswapd_order = 0;
+				}
+			} else
+				schedule();
+		}
 
 		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
 	} else {

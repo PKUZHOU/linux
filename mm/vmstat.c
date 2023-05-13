@@ -28,6 +28,8 @@
 #include <linux/mm_inline.h>
 #include <linux/page_ext.h>
 #include <linux/page_owner.h>
+#include <linux/migrate.h>
+#include <linux/memory-tiers.h>
 
 #include "internal.h"
 
@@ -1283,6 +1285,8 @@ const char * const vmstat_text[] = {
 	"pgscan_file",
 	"pgsteal_anon",
 	"pgsteal_file",
+	"pgdemote_file",
+	"pgdemote_anon",
 
 #ifdef CONFIG_NUMA
 	"zone_reclaim_failed",
@@ -1306,10 +1310,21 @@ const char * const vmstat_text[] = {
 	"numa_hint_faults",
 	"numa_hint_faults_local",
 	"numa_pages_migrated",
+	"pgpromote_candidate_tpp",
+	"pgpromote_candidate_demoted",
+	"pgpromote_candidate_anon",
+	"pgpromote_candidate_file",
+	"pgpromote_tried",
+	"pgpromote_file",
+	"pgpromote_anon",
 #endif
 #ifdef CONFIG_MIGRATION
 	"pgmigrate_success",
 	"pgmigrate_fail",
+	"pgmigrate_fail_dst_node_full",
+	"pgmigrate_fail_numa_isolate",
+	"pgmigrate_fail_nomem",
+	"pgmigrate_fail_refcount",
 	"thp_migration_success",
 	"thp_migration_fail",
 	"thp_migration_split",
@@ -1664,7 +1679,9 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 							struct zone *zone)
 {
 	int i;
-	seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
+	seq_printf(m, "Node %d, zone %8s, toptier %d next_demotion_node %d",
+			pgdat->node_id, zone->name, node_is_toptier(pgdat->node_id),
+			next_demotion_node(pgdat->node_id));
 	if (is_zone_first_populated(pgdat, zone)) {
 		seq_printf(m, "\n  per-node stats");
 		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
@@ -1682,6 +1699,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n        min      %lu"
 		   "\n        low      %lu"
 		   "\n        high     %lu"
+		   "\n        demote   %lu"
 		   "\n        spanned  %lu"
 		   "\n        present  %lu"
 		   "\n        managed  %lu"
@@ -1691,6 +1709,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   min_wmark_pages(zone),
 		   low_wmark_pages(zone),
 		   high_wmark_pages(zone),
+		   node_is_toptier(pgdat->node_id) ? demote_wmark_pages(zone) : 0,
 		   zone->spanned_pages,
 		   zone->present_pages,
 		   zone_managed_pages(zone),

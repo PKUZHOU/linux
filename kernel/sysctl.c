@@ -86,6 +86,14 @@
 const int sysctl_vals[] = { 0, 1, 2, 3, 4, 100, 200, 1000, 3000, INT_MAX, 65535, -1 };
 EXPORT_SYMBOL(sysctl_vals);
 
+static int __maybe_unused one = 1;
+static int __maybe_unused two = 2;
+static int __maybe_unused three = 3;
+static int __maybe_unused four = 4;
+static unsigned long zero_ul;
+static unsigned long one_ul = 1;
+static int ten_thousand = 10000;
+
 const unsigned long sysctl_long_vals[] = { 0, 1, LONG_MAX };
 EXPORT_SYMBOL_GPL(sysctl_long_vals);
 
@@ -2409,6 +2417,15 @@ static struct ctl_table vm_table[] = {
 		.maxlen		= sizeof(sysctl_user_reserve_kbytes),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
+	},
+	{
+		.procname       = "demote_scale_factor",
+		.data           = &demote_scale_factor,
+		.maxlen         = sizeof(demote_scale_factor),
+		.mode           = 0644,
+		.proc_handler   = demote_scale_factor_sysctl_handler,
+		.extra1         = &one,
+		.extra2         = &ten_thousand,
 	},
 	{
 		.procname	= "admin_reserve_kbytes",

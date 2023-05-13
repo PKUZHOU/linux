@@ -241,27 +241,28 @@ static struct memory_tier *__node_get_memory_tier(int node)
 #ifdef CONFIG_MIGRATION
 bool node_is_toptier(int node)
 {
-	bool toptier;
-	pg_data_t *pgdat;
-	struct memory_tier *memtier;
+// 	bool toptier;
+// 	pg_data_t *pgdat;
+// 	struct memory_tier *memtier;
 
-	pgdat = NODE_DATA(node);
-	if (!pgdat)
-		return false;
+// 	pgdat = NODE_DATA(node);
+// 	if (!pgdat)
+// 		return false;
 
-	rcu_read_lock();
-	memtier = rcu_dereference(pgdat->memtier);
-	if (!memtier) {
-		toptier = true;
-		goto out;
-	}
-	if (memtier->adistance_start <= top_tier_adistance)
-		toptier = true;
-	else
-		toptier = false;
-out:
-	rcu_read_unlock();
-	return toptier;
+// 	rcu_read_lock();
+// 	memtier = rcu_dereference(pgdat->memtier);
+// 	if (!memtier) {
+// 		toptier = true;
+// 		goto out;
+// 	}
+// 	if (memtier->adistance_start <= top_tier_adistance)
+// 		toptier = true;
+// 	else
+// 		toptier = false;
+// out:
+// 	rcu_read_unlock();
+// 	return toptier;
+	return (node == 0);
 }
 
 void node_get_allowed_targets(pg_data_t *pgdat, nodemask_t *targets)

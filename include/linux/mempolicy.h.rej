@@ -1,0 +1,30 @@
+--- include/linux/mempolicy.h
++++ include/linux/mempolicy.h
+@@ -188,6 +188,7 @@ extern int mpol_misplaced(struct page *, struct vm_area_struct *, unsigned long,
+ extern void mpol_put_task_policy(struct task_struct *);
+ 
+ extern bool numa_demotion_enabled;
++extern bool numa_promotion_tiered_enabled;
+ 
+ #else
+ 
+@@ -299,5 +300,6 @@ static inline nodemask_t *policy_nodemask_current(gfp_t gfp)
+ }
+ 
+ #define numa_demotion_enabled	false
++#define numa_promotion_tiered_enabled	false
+ #endif /* CONFIG_NUMA */
+ #endif
+--- include/linux/mempolicy.h
++++ include/linux/mempolicy.h
+@@ -300,6 +301,10 @@ static inline nodemask_t *policy_nodemask_current(gfp_t gfp)
+ 	return NULL;
+ }
+ 
++static inline void check_toptier_balanced(void)
++{
++}
++
+ #define numa_demotion_enabled	false
+ #define numa_promotion_tiered_enabled	false
+ #endif /* CONFIG_NUMA */
