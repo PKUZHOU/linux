@@ -644,6 +644,9 @@ void __init early_init_fdt_scan_reserved_mem(void)
 	}
 
 	fdt_scan_reserved_mem();
+
+	/* A hack here*/
+	early_init_dt_reserve_memory(0x280000000L, 0x1000, true);
 	fdt_reserve_elfcorehdr();
 	fdt_init_reserved_mem();
 }

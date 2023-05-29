@@ -143,6 +143,52 @@ static int __init add_kernel_resources(void)
 	return ret;
 }
 
+static int __init early_parse_memmap(char *p)
+{
+	// TODO: make this work
+	char *oldp;
+	u64 start_at, mem_size;
+
+	if (!p)
+		return -EINVAL;
+
+	if (!strncmp(p, "exactmap", 8)) {
+		pr_err("\"memmap=exactmap\" invalid on MIPS\n");
+		return 0;
+	}
+
+	oldp = p;
+	mem_size = memparse(p, &p);
+	if (p == oldp)
+		return -EINVAL;
+
+	if (*p == '@') {
+		start_at = memparse(p+1, &p);
+		memblock_add(start_at, mem_size);
+	} else if (*p == '#') {
+		pr_err("\"memmap=nn#ss\" (force ACPI data) invalid on MIPS\n");
+		return -EINVAL;
+	} else if (*p == '$') {
+		start_at = memparse(p+1, &p);
+		memblock_add(start_at, mem_size);
+		memblock_reserve(start_at, mem_size);
+		pr_info("Reserved %x B of memory at %x \n",
+			(unsigned long long) mem_size,
+			(unsigned long long) start_at);
+	} else {
+		pr_err("\"memmap\" invalid format!\n");
+		return -EINVAL;
+	}
+
+	if (*p == '\0') {
+		// usermem = 1;
+		return 0;
+	} else
+		return -EINVAL;
+}
+early_param("memmap", early_parse_memmap);
+
+
 static void __init init_resources(void)
 {
 	struct memblock_region *region = NULL;
