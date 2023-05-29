@@ -242,4 +242,6 @@ source "drivers/peci/Kconfig"
 source "drivers/hte/Kconfig"
 
 source "drivers/extmem/Kconfig"
+
+source "drivers/neoprofiler/Kconfig
 endmenu

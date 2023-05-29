@@ -1,0 +1,4 @@
+config NEOPROF
+	bool "Enable Neoprofiler"
+    default n
+    
