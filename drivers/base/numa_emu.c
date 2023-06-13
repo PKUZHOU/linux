@@ -12,6 +12,8 @@
 static char *emu_cmdline __initdata;
 #define MB2BYTE(x)	((u64)(x) << 6)
 
+#define DRAM_START_RESERVE 0x200000
+#define NEPROFILER_RESERVE 0x1000
 
 /*
  * arch_numa_emu_cmdline - parse early NUMA Emulation params.
@@ -47,7 +49,7 @@ int __init arch_numa_emu_init(void)
 	
 	pr_info("PFN_PHYS(max_pfn) = %#018Lx\n", PFN_PHYS(max_pfn));
 	pr_info("PFN_PHYS(min_low_pfb) = %#018Lx\n", PFN_PHYS(min_low_pfn)); 
-	u64 phy_mem_size = PFN_PHYS(max_pfn) - PFN_PHYS(min_low_pfn) + 0x200000;  // TODO: Avoid hardcoding 0x200000
+	u64 phy_mem_size = PFN_PHYS(max_pfn) - PFN_PHYS(min_low_pfn) + DRAM_START_RESERVE;  // TODO: Avoid hardcoding 0x200000
 
 	char *ptr = strchr(emu_cmdline, ':');
 	if (ptr != NULL) {
@@ -66,9 +68,15 @@ int __init arch_numa_emu_init(void)
 		if (node_cnt > MAX_NUMNODES)
 			pr_err("NUMA emu: Node count is too large\n");
 		
+		// if (node_cnt != 2){
+		// 	pr_err("NUMA emu: Node count is not 2\n");
+		// 	return -EINVAL;
+		// }
+		
 		for (i = 0; i < node_cnt; i++) {
 			assigned_node_size[i] = ratio[i] * phy_mem_size / total_ratio;
-			if(i == 0) assigned_node_size[i] -= 0x200000;
+			if(i == 0) assigned_node_size[i] -= DRAM_START_RESERVE;
+			// else if(i == 1) assigned_node_size[i] -= NEPROFILER_RESERVE;
 			pr_info("NUMA emu: Node Size = %#018Lx Node_Idx = %d Ratio = %d\n",
 				assigned_node_size[i], i, ratio[i]);
 		}
@@ -90,7 +98,11 @@ int __init arch_numa_emu_init(void)
 	}
 	
 	for_each_memblock(memory, mblk)
+	{
+		pr_info("NUMA emu: MBLK Memory Block Size = %#018Lx\n", mblk->size);
+		// if(mblk->size > NEPROFILER_RESERVE)
 		mblk_cnt++;
+	}
 
 	/*
 	 * Size the node count to match the memory block count to avoid
@@ -129,17 +141,25 @@ int __init arch_numa_emu_init(void)
 			}
 			break;
 		}
+
+		// if(mblk->size <= NEPROFILER_RESERVE)
+		// 	continue;
+
 		pr_info("Adding a emulation node %d for [mem %#018Lx-%#018Lx]\n",
 			node, mblk->base, mblk->base + mblk->size);
 		ret = numa_add_memblk(node, mblk->base,
 				      mblk->base + mblk->size);
+
+		if(node == 0) // Node 1 contains NEO profiler and remote CXL node
+			node ++;
+
 		if (!ret)
 			continue;
 		pr_err("NUMA emulation init failed\n");
 		return ret;
 	}
-	pr_info("NUMA: added %d emulation nodes of %#018Lx size each\n",
-		node_cnt, node_size);
+	// pr_info("NUMA: added %d emulation nodes of %#018Lx size each\n",
+	// 	node_cnt, node_size);
 
 	return 0;
 }

@@ -646,7 +646,8 @@ void __init early_init_fdt_scan_reserved_mem(void)
 	fdt_scan_reserved_mem();
 
 	/* A hack here*/
-	early_init_dt_reserve_memory(0x280000000L, 0x1000, true);
+	early_init_dt_reserve_memory(0x180000000L, 0x1000, true);
+	pr_info("Reserving 4 KiB of memory at 0x%llx for OPAL\n", 0x180000000L);
 	fdt_reserve_elfcorehdr();
 	fdt_init_reserved_mem();
 }
