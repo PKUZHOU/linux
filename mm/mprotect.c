@@ -161,6 +161,10 @@ static long change_pte_range(struct mmu_gather *tlb,
 					continue;
 				toptier = node_is_toptier(nid);
 
+				/* skip scanning toptier node */
+				if (numa_promotion_tiered_enabled && node_is_toptier(nid))
+ 					continue;
+
 				/*
 				 * Skip scanning top tier node if normal numa
 				 * balancing is disabled

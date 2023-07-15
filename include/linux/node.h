@@ -169,4 +169,11 @@ static inline void unregister_memory_block_under_nodes(struct memory_block *mem_
 
 #define to_node(device) container_of(device, struct node, dev)
 
+// static inline bool node_is_toptier(int node)
+// {
+// 	// ideally, toptier nodes should be the memory with CPU.
+// 	// for now, just assume node0 is the toptier memory
+// 	// return node_state(node, N_CPU);
+// 	return (node == 0);
+// }
 #endif /* _LINUX_NODE_H_ */

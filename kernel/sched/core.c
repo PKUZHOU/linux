@@ -64,6 +64,7 @@
 #include <linux/vtime.h>
 #include <linux/wait_api.h>
 #include <linux/workqueue_api.h>
+#include <linux/memory-tiers.h>
 
 #ifdef CONFIG_PREEMPT_DYNAMIC
 # ifdef CONFIG_GENERIC_ENTRY
@@ -4475,6 +4476,20 @@ DEFINE_STATIC_KEY_FALSE(sched_numa_balancing);
 #ifdef CONFIG_NUMA_BALANCING
 
 int sysctl_numa_balancing_mode;
+bool numa_promotion_tiered_enabled;
+
+static void check_numa_promotion_mode(void)
+{
+	int node, toptier_node_count = 0;
+
+	for_each_online_node(node) {
+		if (node_is_toptier(node))
+			++toptier_node_count;
+	}
+	if (toptier_node_count == 1) {
+		numa_promotion_tiered_enabled = true;
+	}
+}
 
 static void __set_numabalancing_state(bool enabled)
 {
@@ -4525,6 +4540,10 @@ static int sysctl_numa_balancing(struct ctl_table *table, int write,
 		    (state & NUMA_BALANCING_MEMORY_TIERING))
 			reset_memory_tiering();
 		sysctl_numa_balancing_mode = state;
+		if (sysctl_numa_balancing_mode & NUMA_BALANCING_NORMAL)
+			check_numa_promotion_mode();
+		else if (sysctl_numa_balancing_mode & NUMA_BALANCING_TIERED_MEMORY)
+			numa_promotion_tiered_enabled = true;
 		__set_numabalancing_state(state);
 	}
 	return err;
@@ -4635,8 +4654,8 @@ static struct ctl_table sched_core_sysctls[] = {
 #ifdef CONFIG_NUMA_BALANCING
 	{
 		.procname	= "numa_balancing",
-		.data		= NULL, /* filled in by handler */
-		.maxlen		= sizeof(unsigned int),
+		.data		= &sysctl_numa_balancing_mode, /* filled in by handler */
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= sysctl_numa_balancing,
 		.extra1		= SYSCTL_ZERO,
