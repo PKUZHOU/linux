@@ -12,6 +12,7 @@
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
 #include <linux/swap.h>
+#include <linux/migrate.h>
 
 #include "../internal.h"
 #include "ops-common.h"
@@ -298,6 +299,63 @@ static unsigned long damon_pa_deactivate_pages(struct damon_region *r,
 	return damon_pa_mark_accessed_or_deactivate(r, s, false);
 }
 
+static bool __damon_pa_get_vma(struct folio *folio, struct vm_area_struct *vma,
+		unsigned long addr, void *arg)
+{
+	*(struct vm_area_struct **)arg = vma;
+	if (vma)
+		return false;
+	return true;
+}
+
+static unsigned long damon_pa_migrate(struct damon_region *r,
+	struct damos *s)
+{
+	unsigned long start = r->ar.start;
+	unsigned long end = r->ar.end;
+	unsigned long pfn = start / PAGE_SIZE;
+	struct folio *folio;
+	struct rmap_walk_control rwc;
+	bool need_lock;
+	struct vm_area_struct *vma;
+	struct page *page;
+	int isolated;
+
+	for (pfn = start / PAGE_SIZE; pfn == start / PAGE_SIZE || pfn < end / PAGE_SIZE; pfn++){
+		folio = damon_get_folio(pfn);
+		rwc.arg = &vma;
+		rwc.rmap_one = __damon_pa_get_vma;
+		rwc.anon_lock = folio_lock_anon_vma_read;
+
+		if (!folio)
+			continue;
+		if (!folio_mapped(folio) || !folio_raw_mapping(folio)) 
+			goto out;
+
+		need_lock = !folio_test_anon(folio) || folio_test_ksm(folio);
+		if (need_lock && !folio_trylock(folio))
+			goto out;
+
+		rmap_walk(folio, &rwc);
+
+		if (need_lock)
+			folio_unlock(folio);
+
+		page = pfn_to_page(pfn);
+
+		isolated = migrate_misplaced_page(page, vma, 0);
+		// debug info
+		if (isolated){
+			printk("migrate action completed!\n");
+		}
+
+out:
+		folio_put(folio);
+	}
+	
+	return 0;
+}
+
 static unsigned long damon_pa_apply_scheme(struct damon_ctx *ctx,
 		struct damon_target *t, struct damon_region *r,
 		struct damos *scheme)
@@ -311,6 +369,8 @@ static unsigned long damon_pa_apply_scheme(struct damon_ctx *ctx,
 		return damon_pa_deactivate_pages(r, scheme);
 	case DAMOS_STAT:
 		break;
+	case DAMOS_MIGRATE:
+		return damon_pa_migrate(r, scheme);
 	default:
 		/* DAMOS actions that not yet supported by 'paddr'. */
 		break;
@@ -329,6 +389,8 @@ static int damon_pa_scheme_score(struct damon_ctx *context,
 		return damon_hot_score(context, r, scheme);
 	case DAMOS_LRU_DEPRIO:
 		return damon_cold_score(context, r, scheme);
+	case DAMOS_MIGRATE:
+		return damon_hot_score(context, r, scheme);
 	default:
 		break;
 	}

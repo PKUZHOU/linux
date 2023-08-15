@@ -107,6 +107,7 @@ enum damos_action {
 	DAMOS_LRU_PRIO,
 	DAMOS_LRU_DEPRIO,
 	DAMOS_STAT,		/* Do nothing but only record the stat */
+	DAMOS_MIGRATE,
 	NR_DAMOS_ACTIONS,
 };
 
@@ -632,6 +633,9 @@ int damon_stop(struct damon_ctx **ctxs, int nr_ctxs);
 
 int damon_set_region_biggest_system_ram_default(struct damon_target *t,
 				unsigned long *start, unsigned long *end);
+
+int damon_set_region_numa_node1(struct damon_target *t,
+			unsigned long *start, unsigned long *end);
 
 #endif	/* CONFIG_DAMON */
 

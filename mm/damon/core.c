@@ -1452,6 +1452,24 @@ int damon_set_region_biggest_system_ram_default(struct damon_target *t,
 	return damon_set_regions(t, &addr_range, 1);
 }
 
+
+int damon_set_region_numa_node1(struct damon_target *t,
+			unsigned long *start, unsigned long *end)
+{
+	struct damon_addr_range addr_range;
+
+	if (*start > *end)
+		return -EINVAL;
+
+	*start = PFN_PHYS(NODE_DATA(1)->node_start_pfn);
+	*end = PFN_PHYS(NODE_DATA(1)->node_start_pfn + NODE_DATA(1)->node_spanned_pages);
+
+	addr_range.start = *start;
+	addr_range.end = *end;
+	return damon_set_regions(t, &addr_range, 1);
+}
+
+
 static int __init damon_init(void)
 {
 	damon_region_cache = KMEM_CACHE(damon_region, 0);
