@@ -1456,7 +1456,15 @@ int damon_set_region_biggest_system_ram_default(struct damon_target *t,
 int damon_set_region_numa_node1(struct damon_target *t,
 			unsigned long *start, unsigned long *end)
 {
-	struct damon_addr_range addr_range;
+	unsigned long _start, _end;
+	struct damon_region *newr;
+	struct damon_region *r;
+	// debug
+	// struct damon_region *head;
+	int n;
+	//
+
+	r = damon_first_region(t);
 
 	if (*start > *end)
 		return -EINVAL;
@@ -1464,9 +1472,29 @@ int damon_set_region_numa_node1(struct damon_target *t,
 	*start = PFN_PHYS(NODE_DATA(1)->node_start_pfn);
 	*end = PFN_PHYS(NODE_DATA(1)->node_start_pfn + NODE_DATA(1)->node_spanned_pages);
 
-	addr_range.start = *start;
-	addr_range.end = *end;
-	return damon_set_regions(t, &addr_range, 1);
+	_start = ALIGN_DOWN(*start, PAGE_SIZE);
+	_end = ALIGN(*end, PAGE_SIZE);
+
+	for (; _start < _end; _start += PAGE_SIZE){
+		newr = damon_new_region(_start, _start + PAGE_SIZE);
+		if (!newr)
+			return -ENOMEM;
+		damon_insert_region(newr, r, damon_next_region(r), t);
+		r = damon_next_region(r);
+	}
+
+	// debug info
+	r = damon_first_region(t);
+	printk("target has %d regions!\n", t->nr_regions);
+	for (n = 0; n < t->nr_regions; n++){
+		if (n >= t->nr_regions - 10 || n <= 10){
+			printk("region %d status:\n", n);
+			printk("start: %ld, end: %ld, size: %ld\n", r->ar.start, r->ar.end, r->ar.end - r->ar.start);
+		}
+		r = damon_next_region(r);
+	}
+	printk("is circle: %d\n", (int)((r->list.next == t->regions_list.next) && (r->list.prev == t->regions_list.prev)));
+	return 0;
 }
 
 
