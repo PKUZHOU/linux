@@ -13,6 +13,7 @@
 #include <linux/rmap.h>
 #include <linux/swap.h>
 #include <linux/migrate.h>
+#include <linux/damon.h>
 
 #include "../internal.h"
 #include "ops-common.h"
@@ -321,33 +322,91 @@ static unsigned long damon_pa_migrate(struct damon_region *r,
 	struct page *page;
 	int isolated;
 
+#ifdef PRINT_DEBUG_INFO
+		if (debug_pointer == 6){
+			debug_pointer = 7;
+			printk("reach point 6! entered damon_pa_migrate!\n");
+		}
+#endif
+
 	for (pfn = start / PAGE_SIZE; pfn == start / PAGE_SIZE || pfn < end / PAGE_SIZE; pfn++){
 		folio = damon_get_folio(pfn);
 		rwc.arg = &vma;
 		rwc.rmap_one = __damon_pa_get_vma;
 		rwc.anon_lock = folio_lock_anon_vma_read;
 
+#ifdef PRINT_DEBUG_INFO
+		if (debug_pointer == 7){
+			debug_pointer = 8;
+			printk("reach point 7!\n");
+		}
+#endif
+
 		if (!folio)
 			continue;
+
+#ifdef PRINT_DEBUG_INFO
+		if (debug_pointer == 8){
+			debug_pointer = 9;
+			printk("reach point 8!\n");
+		}
+#endif
+
 		if (!folio_mapped(folio) || !folio_raw_mapping(folio)) 
 			goto out;
+
+#ifdef PRINT_DEBUG_INFO
+		if (debug_pointer == 9){
+			debug_pointer = 10;
+			printk("reach point 9!\n");
+		}
+#endif
 
 		need_lock = !folio_test_anon(folio) || folio_test_ksm(folio);
 		if (need_lock && !folio_trylock(folio))
 			goto out;
 
+#ifdef PRINT_DEBUG_INFO
+		if (debug_pointer == 10){
+			debug_pointer = 11;
+			printk("reach point 10!\n");
+		}
+#endif
+
 		rmap_walk(folio, &rwc);
+
+#ifdef PRINT_DEBUG_INFO
+		if (debug_pointer == 11){
+			debug_pointer = 12;
+			printk("reach point 11!\n");
+		}
+#endif
 
 		if (need_lock)
 			folio_unlock(folio);
 
 		page = pfn_to_page(pfn);
 
-		isolated = migrate_misplaced_page(page, vma, 0);
-		// debug info
-		if (isolated){
-			printk("migrate action completed!\n");
+#ifdef PRINT_DEBUG_INFO
+		if (debug_pointer == 12){
+			debug_pointer = 13;
+			printk("reach point 12! entered migrate_misplaced_page!\n");
 		}
+#endif
+
+		isolated = migrate_misplaced_page(page, vma, 0);
+
+#ifdef PRINT_DEBUG_INFO
+		if (debug_pointer == 13){
+			if (isolated){
+				printk("migrate action completed!\n");
+			}
+			else{
+				printk("migrate action completed! Yet no page migration happened!\n");
+			}
+			debug_pointer = 14;
+		}
+#endif
 
 out:
 		folio_put(folio);
