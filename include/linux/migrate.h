@@ -227,6 +227,9 @@ void migrate_device_pages(unsigned long *src_pfns, unsigned long *dst_pfns,
 void migrate_device_finalize(unsigned long *src_pfns,
 			unsigned long *dst_pfns, unsigned long npages);
 
+struct page *alloc_misplaced_dst_page(struct page *page,
+					   unsigned long data);
+
 #endif /* CONFIG_MIGRATION */
 
 #endif /* _LINUX_MIGRATE_H */

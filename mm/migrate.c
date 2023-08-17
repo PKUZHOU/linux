@@ -2511,7 +2511,7 @@ static bool migrate_balanced_pgdat(struct pglist_data *pgdat,
 	return false;
 }
 
-static struct page *alloc_misplaced_dst_page(struct page *page,
+struct page *alloc_misplaced_dst_page(struct page *page,
 					   unsigned long data)
 {
 	int nid = (int) data;

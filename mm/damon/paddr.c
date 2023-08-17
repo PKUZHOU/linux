@@ -14,6 +14,7 @@
 #include <linux/swap.h>
 #include <linux/migrate.h>
 #include <linux/damon.h>
+#include <linux/mm_inline.h>
 
 #include "../internal.h"
 #include "ops-common.h"
@@ -300,40 +301,50 @@ static unsigned long damon_pa_deactivate_pages(struct damon_region *r,
 	return damon_pa_mark_accessed_or_deactivate(r, s, false);
 }
 
-static bool __damon_pa_get_vma(struct folio *folio, struct vm_area_struct *vma,
-		unsigned long addr, void *arg)
-{
-	*(struct vm_area_struct **)arg = vma;
-	if (vma)
-		return false;
-	return true;
-}
-
 static unsigned long damon_pa_migrate(struct damon_region *r,
 	struct damos *s)
 {
-	unsigned long start = r->ar.start;
-	unsigned long end = r->ar.end;
-	unsigned long pfn = start / PAGE_SIZE;
-	struct folio *folio;
-	struct rmap_walk_control rwc;
-	bool need_lock;
-	struct vm_area_struct *vma;
-	struct page *page;
-	int isolated;
+	unsigned long addr;
+	struct folio *_folio;
+	LIST_HEAD(folio_list);
+	int nr_remaining;
+	unsigned int nr_succeeded;
+
+	for (addr = r->ar.start; addr < r->ar.end; addr += PAGE_SIZE) {
+		struct folio *folio = damon_get_folio(PHYS_PFN(addr));
+
+		if (!folio)
+			continue;
+
+		if (damos_pa_filter_out(s, folio)) {
+			folio_put(folio);
+			continue;
+		}
+
+
+		folio_clear_referenced(folio);
+		folio_test_clear_young(folio);
+		if (!folio_isolate_lru(folio)) {
+			folio_put(folio);
+			continue;
+		}
+		if (folio_test_unevictable(folio))
+			folio_putback_lru(folio);
+		else
+			list_add(&folio->lru, &folio_list);
+		folio_put(folio);
+	}
 
 #ifdef PRINT_DEBUG_INFO
 		if (debug_pointer == 6){
 			debug_pointer = 7;
-			printk("reach point 6! entered damon_pa_migrate!\n");
+			printk("reach point 6!\n");
 		}
 #endif
 
-	for (pfn = start / PAGE_SIZE; pfn == start / PAGE_SIZE || pfn < end / PAGE_SIZE; pfn++){
-		folio = damon_get_folio(pfn);
-		rwc.arg = &vma;
-		rwc.rmap_one = __damon_pa_get_vma;
-		rwc.anon_lock = folio_lock_anon_vma_read;
+	nr_remaining = migrate_pages(&folio_list, alloc_misplaced_dst_page,
+				     NULL, 0, MIGRATE_ASYNC,
+				     MR_NUMA_MISPLACED, &nr_succeeded);
 
 #ifdef PRINT_DEBUG_INFO
 		if (debug_pointer == 7){
@@ -342,77 +353,38 @@ static unsigned long damon_pa_migrate(struct damon_region *r,
 		}
 #endif
 
-		if (!folio)
-			continue;
-
+	if (nr_remaining) {
+		while (!list_empty(&folio_list)){
+			_folio = list_entry(folio_list.next, struct folio, lru);
 #ifdef PRINT_DEBUG_INFO
 		if (debug_pointer == 8){
 			debug_pointer = 9;
 			printk("reach point 8!\n");
 		}
 #endif
-
-		if (!folio_mapped(folio) || !folio_raw_mapping(folio)) 
-			goto out;
-
+			list_del(&_folio->lru);
 #ifdef PRINT_DEBUG_INFO
 		if (debug_pointer == 9){
 			debug_pointer = 10;
 			printk("reach point 9!\n");
 		}
 #endif
-
-		need_lock = !folio_test_anon(folio) || folio_test_ksm(folio);
-		if (need_lock && !folio_trylock(folio))
-			goto out;
-
+			folio_putback_lru(_folio);
 #ifdef PRINT_DEBUG_INFO
 		if (debug_pointer == 10){
 			debug_pointer = 11;
 			printk("reach point 10!\n");
 		}
 #endif
-
-		rmap_walk(folio, &rwc);
-
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 11){
-			debug_pointer = 12;
-			printk("reach point 11!\n");
 		}
-#endif
-
-		if (need_lock)
-			folio_unlock(folio);
-
-		page = pfn_to_page(pfn);
-
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 12){
-			debug_pointer = 13;
-			printk("reach point 12! entered migrate_misplaced_page!\n");
-		}
-#endif
-
-		isolated = migrate_misplaced_page(page, vma, 0);
-
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 13){
-			if (isolated){
-				printk("migrate action completed!\n");
-			}
-			else{
-				printk("migrate action completed! Yet no page migration happened!\n");
-			}
-			debug_pointer = 14;
-		}
-#endif
-
-out:
-		folio_put(folio);
+		printk("%d pages were remained!\n", nr_remaining);
 	}
-	
-	return 0;
+	if (nr_succeeded) {
+		printk("%d pages were migrated!\n", nr_succeeded);
+	}
+	BUG_ON(!list_empty(&folio_list));	
+
+	return (unsigned long)(nr_succeeded) * PAGE_SIZE;
 }
 
 static unsigned long damon_pa_apply_scheme(struct damon_ctx *ctx,
