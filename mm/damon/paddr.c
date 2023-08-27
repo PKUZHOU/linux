@@ -335,52 +335,24 @@ static unsigned long damon_pa_migrate(struct damon_region *r,
 		folio_put(folio);
 	}
 
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 6){
-			debug_pointer = 7;
-			printk("reach point 6!\n");
-		}
-#endif
-
 	nr_remaining = migrate_pages(&folio_list, alloc_misplaced_dst_page,
 				     NULL, 0, MIGRATE_ASYNC,
 				     MR_NUMA_MISPLACED, &nr_succeeded);
 
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 7){
-			debug_pointer = 8;
-			printk("reach point 7!\n");
-		}
-#endif
-
 	if (nr_remaining) {
 		while (!list_empty(&folio_list)){
 			_folio = list_entry(folio_list.next, struct folio, lru);
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 8){
-			debug_pointer = 9;
-			printk("reach point 8!\n");
-		}
-#endif
 			list_del(&_folio->lru);
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 9){
-			debug_pointer = 10;
-			printk("reach point 9!\n");
-		}
-#endif
 			folio_putback_lru(_folio);
+		}
 #ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 10){
-			debug_pointer = 11;
-			printk("reach point 10!\n");
-		}
-#endif
-		}
 		printk("%d pages were remained!\n", nr_remaining);
+#endif
 	}
 	if (nr_succeeded) {
+#ifdef PRINT_DEBUG_INFO
 		printk("%d pages were migrated!\n", nr_succeeded);
+#endif
 	}
 	BUG_ON(!list_empty(&folio_list));	
 

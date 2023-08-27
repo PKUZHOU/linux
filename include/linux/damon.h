@@ -27,10 +27,6 @@ static inline unsigned long damon_rand(unsigned long l, unsigned long r)
 	return l + get_random_u32_below(r - l);
 }
 
-// define a debug pointer to control the number of printed message
-#ifdef PRINT_DEBUG_INFO
-extern int debug_pointer;
-#endif
 
 /**
  * struct damon_addr_range - Represents an address region of [@start, @end).

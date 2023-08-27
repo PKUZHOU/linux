@@ -31,9 +31,6 @@ static struct damon_operations damon_registered_ops[NR_DAMON_OPS];
 
 static struct kmem_cache *damon_region_cache __ro_after_init;
 
-#ifdef PRINT_DEBUG_INFO
-int debug_pointer = 0;
-#endif
 
 /* Should be called under damon_ops_lock with id smaller than NR_DAMON_OPS */
 static bool __damon_is_registered_ops(enum damon_ops_id id)
@@ -900,13 +897,6 @@ static void damos_apply_scheme(struct damon_ctx *c, struct damon_target *t,
 		if (c->callback.before_damos_apply)
 			err = c->callback.before_damos_apply(c, t, r, s);
 
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 5){
-			debug_pointer = 6;
-			printk("reach point 5! ops.apply_scheme is called!\n");
-		}
-#endif
-
 		if (!err)
 			sz_applied = c->ops.apply_scheme(c, t, r, s);
 		ktime_get_coarse_ts64(&end);
@@ -934,53 +924,18 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
 	damon_for_each_scheme(s, c) {
 		struct damos_quota *quota = &s->quota;
 
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 0){
-			debug_pointer = 1;
-			printk("reach point 0!\n");
-		}
-#endif
-
 		if (!s->wmarks.activated)
 			continue;
-
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 1){
-			debug_pointer = 2;
-			printk("reach point 1!\n");
-		}
-#endif
 
 		/* Check the quota */
 		if (quota->esz && quota->charged_sz >= quota->esz)
 			continue;
 
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 2){
-			debug_pointer = 3;
-			printk("reach point 2!\n");
-		}
-#endif
-
 		if (damos_skip_charged_region(t, &r, s))
 			continue;
 
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 3){
-			debug_pointer = 4;
-			printk("reach point 3!\n");
-		}
-#endif
-
 		if (!damos_valid_target(c, t, r, s))
 			continue;
-
-#ifdef PRINT_DEBUG_INFO
-		if (debug_pointer == 4){
-			debug_pointer = 5;
-			printk("reach point 4!\n");
-		}
-#endif
 
 		damos_apply_scheme(c, t, r, s);
 	}
