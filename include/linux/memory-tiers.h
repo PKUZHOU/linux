@@ -30,8 +30,26 @@ struct memory_dev_type {
 	struct kref kref;
 };
 
+struct memory_tier {
+	/* hierarchy of memory tiers */
+	struct list_head list;
+	/* list of all memory types part of this tier */
+	struct list_head memory_types;
+	/*
+	 * start value of abstract distance. memory tier maps
+	 * an abstract distance  range,
+	 * adistance_start .. adistance_start + MEMTIER_CHUNK_SIZE
+	 */
+	int adistance_start;
+	struct device dev;
+	/* All the nodes that are part of all the lower memory tiers. */
+	nodemask_t lower_tier_mask;
+};
+
 #ifdef CONFIG_NUMA
 extern bool numa_demotion_enabled;
+extern int top_tier_adistance;
+struct memory_tier *__node_get_memory_tier(int node);
 struct memory_dev_type *alloc_memory_type(int adistance);
 void destroy_memory_type(struct memory_dev_type *memtype);
 void init_node_memory_type(int node, struct memory_dev_type *default_type);

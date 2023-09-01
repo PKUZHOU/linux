@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/memory-tiers.h>
 
 #include "modules-common.h"
 
@@ -34,6 +35,7 @@
  * this.
  */
 static bool enabled __read_mostly;
+static bool node1_is_toptier;
 
 /*
  * Make DAMON_RECLAIM reads the input parameters again, except ``enabled``.
@@ -268,6 +270,47 @@ static const struct kernel_param_ops enabled_param_ops = {
 module_param_cb(enabled, &enabled_param_ops, &enabled, 0600);
 MODULE_PARM_DESC(enabled,
 	"Enable or disable DAMON_RECLAIM (default: disabled)");
+
+int node1_is_toptier_read(char *buffer, const struct kernel_param *kp)
+{
+	int t0, t1;
+	t0 = (int)(node_is_toptier(0));
+	t1 = (int)(node_is_toptier(1));
+	/* Y and N chosen as being relatively non-coder friendly */
+	return sprintf(buffer, "%c\nnode0 is toptier: %d\nnode1 is toptier: %d\n", *(bool *)kp->arg ? 'Y' : 'N', t0, t1);
+}
+
+static int node1_is_toptier_store(const char *val,
+		const struct kernel_param *kp)
+{
+	bool enable;
+	int err;
+	struct memory_tier *mt;
+
+	err = kstrtobool(val, &enable);
+	if (err)
+		return err;
+
+	if (enable){
+		mt = __node_get_memory_tier(1);
+		top_tier_adistance = mt->adistance_start + MEMTIER_CHUNK_SIZE - 1;
+	}
+	else{
+		mt = __node_get_memory_tier(0);
+		top_tier_adistance = mt->adistance_start + MEMTIER_CHUNK_SIZE - 1;
+	}
+	return err;
+}
+
+static const struct kernel_param_ops node1_is_toptier_param_ops = {
+	.set = node1_is_toptier_store,
+	.get = node1_is_toptier_read,
+};
+
+module_param_cb(node1_is_toptier, &node1_is_toptier_param_ops, &node1_is_toptier, 0600);
+MODULE_PARM_DESC(node1_is_toptier,
+	"node1 is toptier (default: not)");
+
 
 static int damon_reclaim_handle_commit_inputs(void)
 {
