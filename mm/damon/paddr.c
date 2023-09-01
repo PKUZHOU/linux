@@ -345,14 +345,14 @@ static unsigned long damon_pa_migrate(struct damon_region *r,
 			list_del(&_folio->lru);
 			folio_putback_lru(_folio);
 		}
-#ifdef PRINT_DEBUG_INFO
-		printk("%d pages were remained!\n", nr_remaining);
-#endif
+// #ifdef PRINT_DEBUG_INFO
+// 		printk("%d pages were remained!\n", nr_remaining);
+// #endif
 	}
 	if (nr_succeeded) {
-#ifdef PRINT_DEBUG_INFO
-		printk("%d pages were migrated!\n", nr_succeeded);
-#endif
+// #ifdef PRINT_DEBUG_INFO
+		// printk("%d pages were migrated!\n", nr_succeeded);
+// #endif
 	}
 	BUG_ON(!list_empty(&folio_list));	
 

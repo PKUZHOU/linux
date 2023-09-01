@@ -10,6 +10,12 @@
 #include <linux/damon.h>
 #include <linux/kstrtox.h>
 #include <linux/module.h>
+#include <linux/init.h>
+#include <linux/fs.h>
+#include <linux/delay.h>
+#include <linux/string.h>
+#include <linux/uaccess.h>
+#include <linux/slab.h>
 
 #include "modules-common.h"
 
@@ -72,8 +78,8 @@ static struct damos_watermarks damon_reclaim_wmarks = {
 DEFINE_DAMON_MODULES_WMARKS_PARAMS(damon_reclaim_wmarks);
 
 static struct damon_attrs damon_reclaim_mon_attrs = {
-	.sample_interval = 500000,	
-	.aggr_interval = 1000000,	
+	.sample_interval = 1000000,	
+	.aggr_interval = 5000000,	
 	.ops_update_interval = 0,
 	.min_nr_regions = 10,
 	.max_nr_regions = 10,
@@ -154,6 +160,13 @@ static int damon_reclaim_apply_parameters(void)
 	int err = 0;
 	int page_granularity = true;
 
+#ifdef PRINT_DEBUG_INFO
+	int region_num = 0;
+	int target_num = 0;
+	struct damon_target *t;
+	struct damon_region *r;
+#endif
+
 	err = damon_set_attrs(ctx, &damon_reclaim_mon_attrs);
 	if (err)
 		return err;
@@ -184,6 +197,16 @@ static int damon_reclaim_apply_parameters(void)
 		damon_reclaim_mon_attrs.min_nr_regions = (monitor_region_end - monitor_region_start) / PAGE_SIZE;
 		damon_set_attrs(ctx, &damon_reclaim_mon_attrs);
 	}
+
+#ifdef PRINT_DEBUG_INFO
+	damon_for_each_target(t, ctx) {
+		damon_for_each_region(r, t){
+			region_num += 1;
+		}
+		target_num += 1;
+	}
+	printk("init: region_num: %d, target_num: %d\n", region_num, target_num);
+#endif
 
 	return 0;
 }
@@ -261,6 +284,33 @@ static int damon_reclaim_handle_commit_inputs(void)
 static int damon_reclaim_after_aggregation(struct damon_ctx *c)
 {
 	struct damos *s;
+#ifdef PRINT_DEBUG_INFO
+	struct damon_target *t;
+	struct damon_region *r;
+	unsigned long nr_accesses = 0;
+	int cnt = 0;
+	int region_num = 256 * 1024;
+	int heat_level = 0;
+	unsigned long long bitmap = 0;
+
+	damon_for_each_target(t, ctx) {
+		damon_for_each_region(r, t){
+			nr_accesses += r->nr_accesses;
+			if (cnt == region_num - 1){
+				heat_level = 0;
+				bitmap *= 10;
+				while (nr_accesses > 0){
+					heat_level += 1;
+					nr_accesses /= 10;
+				}
+				bitmap += heat_level;
+			}
+			cnt = (cnt + 1) % region_num;
+		}
+	}
+	printk("%lld\n", bitmap);
+
+#endif
 
 	/* update the stats parameter */
 	damon_for_each_scheme(s, c)
