@@ -55,8 +55,8 @@ module_param(commit_inputs, bool, 0600);
  * If a memory region is not accessed for this or longer time, DAMON_RECLAIM
  * identifies the region as cold, and reclaims.  120 seconds by default.
  */
-static unsigned long min_age __read_mostly = 120000000;
-module_param(min_age, ulong, 0600);
+static unsigned long min_access __read_mostly = 1;
+module_param(min_access, ulong, 0600);
 
 static struct damos_quota damon_reclaim_quota = {
 	/* use up to 10 ms time, reclaim up to 128 MiB per 1 sec by default */
@@ -138,12 +138,16 @@ static struct damos *damon_reclaim_new_scheme(void)
 		.min_sz_region = 0,
 		.max_sz_region = UINT_MAX,
 		/* and not accessed at all */
-		.min_nr_accesses = 0,
+		.min_nr_accesses = min_access,
 		.max_nr_accesses = UINT_MAX,
 		/* for min_age or more micro-seconds */
 		.min_age_region = 0,
 		.max_age_region = UINT_MAX,
 	};
+
+#ifdef PRINT_DEBUG_INFO
+	printk("pattern.min_nr_accesses is set to %d\n", pattern.min_nr_accesses);
+#endif
 
 	return damon_new_scheme(
 			&pattern,
