@@ -19,6 +19,8 @@
 #include "../internal.h"
 #include "ops-common.h"
 
+unsigned long long migrated_pages_cnt = 0;
+
 static bool __damon_pa_mkold(struct folio *folio, struct vm_area_struct *vma,
 		unsigned long addr, void *arg)
 {
@@ -350,9 +352,10 @@ static unsigned long damon_pa_migrate(struct damon_region *r,
 // #endif
 	}
 	if (nr_succeeded) {
-// #ifdef PRINT_DEBUG_INFO
+#ifdef PRINT_DEBUG_INFO
+		migrated_pages_cnt += (unsigned long long)nr_succeeded;
 		// printk("%d pages were migrated!\n", nr_succeeded);
-// #endif
+#endif
 	}
 	BUG_ON(!list_empty(&folio_list));	
 

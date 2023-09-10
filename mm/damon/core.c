@@ -1460,11 +1460,15 @@ int damon_set_region_numa_node1(struct damon_target *t,
 {
 	unsigned long _start, _end;
 	struct damon_region *newr;
-	struct damon_region *r;
+	struct damon_region *r, *next;
 
 #ifdef PRINT_DEBUG_INFO
 	int n;
 #endif
+
+	damon_for_each_region_safe(r, next, t) {
+		damon_destroy_region(r, t);
+	}
 
 
 	r = damon_first_region(t);

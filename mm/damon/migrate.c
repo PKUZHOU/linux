@@ -328,6 +328,8 @@ static int damon_reclaim_handle_commit_inputs(void)
 	return err;
 }
 
+extern unsigned long long migrated_pages_cnt;
+
 static int damon_reclaim_after_aggregation(struct damon_ctx *c)
 {
 	struct damos *s;
@@ -336,7 +338,7 @@ static int damon_reclaim_after_aggregation(struct damon_ctx *c)
 	struct damon_region *r;
 	unsigned long nr_accesses = 0;
 	int cnt = 0;
-	int region_num = 256 * 1024;
+	int region_num = 512 * 1024;
 	int heat_level = 0;
 	unsigned long long bitmap = 0;
 
@@ -350,12 +352,17 @@ static int damon_reclaim_after_aggregation(struct damon_ctx *c)
 					heat_level += 1;
 					nr_accesses /= 10;
 				}
+				if (heat_level > 9)
+					heat_level = 9;
 				bitmap += heat_level;
 			}
 			cnt = (cnt + 1) % region_num;
 		}
 	}
 	printk("%lld\n", bitmap);
+
+	printk("%lld pages is migrated!\n", migrated_pages_cnt);
+	migrated_pages_cnt = 0;
 
 #endif
 
