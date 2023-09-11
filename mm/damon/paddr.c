@@ -162,12 +162,12 @@ static void __damon_pa_check_access(struct damon_region *r)
 	static bool last_accessed;
 
 	/* If the region is in the last checked page, reuse the result */
-	if (ALIGN_DOWN(last_addr, last_folio_sz) ==
-				ALIGN_DOWN(r->sampling_addr, last_folio_sz)) {
-		if (last_accessed)
-			r->nr_accesses++;
-		return;
-	}
+	// if (ALIGN_DOWN(last_addr, last_folio_sz) ==
+	// 			ALIGN_DOWN(r->sampling_addr, last_folio_sz)) {
+	// 	if (last_accessed)
+	// 		r->nr_accesses++;
+	// 	return;
+	// }
 
 	last_accessed = damon_pa_young(r->sampling_addr, &last_folio_sz);
 	if (last_accessed)
