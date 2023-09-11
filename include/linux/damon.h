@@ -20,6 +20,7 @@
 #define DAMOS_MAX_SCORE		(99)
 
 #define PRINT_DEBUG_INFO
+// #define DETAIL_INFO
 
 /* Get a random number in [l, r) */
 static inline unsigned long damon_rand(unsigned long l, unsigned long r)

@@ -884,6 +884,9 @@ static void damos_apply_scheme(struct damon_ctx *c, struct damon_target *t,
 	struct timespec64 begin, end;
 	unsigned long sz_applied = 0;
 	int err = 0;
+#ifdef DETAIL_INFO
+	unsigned long _start, _time;
+#endif
 
 	if (c->ops.apply_scheme) {
 		if (quota->esz && quota->charged_sz + sz > quota->esz) {
@@ -894,6 +897,11 @@ static void damos_apply_scheme(struct damon_ctx *c, struct damon_target *t,
 			damon_split_region_at(t, r, sz);
 		}
 		ktime_get_coarse_ts64(&begin);
+
+#ifdef DETAIL_INFO
+		_start = jiffies;	
+#endif
+
 		if (c->callback.before_damos_apply)
 			err = c->callback.before_damos_apply(c, t, r, s);
 
@@ -903,6 +911,12 @@ static void damos_apply_scheme(struct damon_ctx *c, struct damon_target *t,
 		quota->total_charged_ns += timespec64_to_ns(&end) -
 			timespec64_to_ns(&begin);
 		quota->charged_sz += sz;
+
+#ifdef DETAIL_INFO
+		_time = jiffies - _start;
+		printk("single migrate. quota->charged_sz: %ld, current size: %ld, time: %ld\n", quota->charged_sz, sz, _time);
+#endif
+
 		if (quota->esz && quota->charged_sz >= quota->esz) {
 			quota->charge_target_from = t;
 			quota->charge_addr_from = r->ar.end + 1;
@@ -1009,6 +1023,11 @@ static void damos_adjust_quota(struct damon_ctx *c, struct damos *s)
 			break;
 	}
 	quota->min_score = score;
+
+#ifdef PRINT_DEBUG_INFO
+	printk("quota adjusted. quota->min_score: %d, quota->esz: %ld\n", quota->min_score, quota->esz);
+	printk("quota->total_charged_sz: %ld, quota->total_charged_ns: %ld\n", quota->total_charged_sz, quota->total_charged_ns);
+#endif
 }
 
 static void kdamond_apply_schemes(struct damon_ctx *c)

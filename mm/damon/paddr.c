@@ -310,7 +310,10 @@ static unsigned long damon_pa_migrate(struct damon_region *r,
 	struct folio *_folio;
 	LIST_HEAD(folio_list);
 	int nr_remaining;
-	unsigned int nr_succeeded;
+	unsigned int nr_succeeded = 0;
+#ifdef DETAIL_INFO
+	size_t len = 0;
+#endif
 
 	for (addr = r->ar.start; addr < r->ar.end; addr += PAGE_SIZE) {
 		struct folio *folio = damon_get_folio(PHYS_PFN(addr));
@@ -337,8 +340,16 @@ static unsigned long damon_pa_migrate(struct damon_region *r,
 		folio_put(folio);
 	}
 
+#ifdef DETAIL_INFO
+	len = list_count_nodes(&folio_list);
+	printk("single migration folio list length: %ld\n", len);
+	_folio = list_entry(folio_list.next, struct folio, lru);
+	len = (size_t)folio_nr_pages(_folio);
+	printk("single migration folio nr_pages: %ld\n", len);
+#endif
+
 	nr_remaining = migrate_pages(&folio_list, alloc_misplaced_dst_page,
-				     NULL, 0, MIGRATE_ASYNC,
+				     NULL, 0, MIGRATE_SYNC,
 				     MR_NUMA_MISPLACED, &nr_succeeded);
 
 	if (nr_remaining) {
@@ -354,7 +365,10 @@ static unsigned long damon_pa_migrate(struct damon_region *r,
 	if (nr_succeeded) {
 #ifdef PRINT_DEBUG_INFO
 		migrated_pages_cnt += (unsigned long long)nr_succeeded;
-		// printk("%d pages were migrated!\n", nr_succeeded);
+#endif
+
+#ifdef DETAIL_INFO
+		printk("single migration: %d pages were migrated, migrated_pages_cnt is %lld\n", nr_succeeded, migrated_pages_cnt);
 #endif
 	}
 	BUG_ON(!list_empty(&folio_list));	
