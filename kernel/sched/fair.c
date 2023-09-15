@@ -59,7 +59,18 @@
 unsigned long long task_tick_fair_cnt = 0;
 unsigned long long task_tick_numa_cnt = 0;
 unsigned long long task_tick_numa_cnt_1 = 0;
+unsigned long long task_tick_numa_cnt_2 = 0;
+unsigned long long task_tick_numa_cnt_3 = 0;
 unsigned long long task_numa_work_cnt = 0;
+unsigned long long task_numa_work_cnt_1 = 0;
+unsigned long long task_numa_work_cnt_2 = 0;
+unsigned long long task_numa_work_cnt_3 = 0;
+
+unsigned long long pte_updates_sum = 0;
+
+unsigned long long vma_not_migratable_cnt = 0;
+unsigned long long vma_shared_cnt = 0;
+unsigned long long vma_not_accessible_cnt = 0;
 
 #define DEBUG_COUNTER(name, times) \
 	name += 1; \
@@ -2955,7 +2966,7 @@ static void task_numa_work(struct callback_head *work)
 	long pages, virtpages;
 	struct vma_iterator vmi;
 
-	DEBUG_COUNTER(task_numa_work_cnt, 10000)
+	DEBUG_COUNTER(task_numa_work_cnt, 1)
 
 	SCHED_WARN_ON(p != container_of(work, struct task_struct, numa_work));
 
@@ -2999,6 +3010,9 @@ static void task_numa_work(struct callback_head *work)
 	p->node_stamp += 2 * TICK_NSEC;
 
 	start = mm->numa_scan_offset;
+
+	printk("mm->numa_scan_offset: %ld\n", mm->numa_scan_offset);
+
 	pages = sysctl_numa_balancing_scan_size;
 	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
 	virtpages = pages * 8;	   /* Scan up to this much virtual space */
@@ -3020,6 +3034,8 @@ static void task_numa_work(struct callback_head *work)
 	do {
 		if (!vma_migratable(vma) || !vma_policy_mof(vma) ||
 			is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_MIXEDMAP)) {
+			DEBUG_COUNTER(vma_not_migratable_cnt, 1)
+			printk("vma not migratable: start: %ld, end: %ld, is_migratable: %d, is_policy_mof: %d, is_vm_hugetlb_page: %d, is_VM_MIXEDMAP: %d\n", vma->vm_start, vma->vm_end, (int)vma_migratable(vma), (int)vma_policy_mof(vma), (int)is_vm_hugetlb_page(vma), (int)(vma->vm_flags & VM_MIXEDMAP));
 			continue;
 		}
 
@@ -3030,21 +3046,28 @@ static void task_numa_work(struct callback_head *work)
 		 * as migrating the pages will be of marginal benefit.
 		 */
 		if (!vma->vm_mm ||
-		    (vma->vm_file && (vma->vm_flags & (VM_READ|VM_WRITE)) == (VM_READ)))
+		    (vma->vm_file && (vma->vm_flags & (VM_READ|VM_WRITE)) == (VM_READ))){
+			DEBUG_COUNTER(vma_shared_cnt, 1)
+			printk("vma shared not migratable: start: %ld, end: %ld\n", vma->vm_start, vma->vm_end);
 			continue;
+		}
 
 		/*
 		 * Skip inaccessible VMAs to avoid any confusion between
 		 * PROT_NONE and NUMA hinting ptes
 		 */
-		if (!vma_is_accessible(vma))
+		if (!vma_is_accessible(vma)){
+			DEBUG_COUNTER(vma_not_accessible_cnt, 1)
 			continue;
+		}
 
 		do {
 			start = max(start, vma->vm_start);
 			end = ALIGN(start + (pages << PAGE_SHIFT), HPAGE_SIZE);
 			end = min(end, vma->vm_end);
 			nr_pte_updates = change_prot_numa(vma, start, end);
+
+			DEBUG_COUNTER(pte_updates_sum, 100)
 
 			/*
 			 * Try to scan sysctl_numa_balancing_size worth of
@@ -3166,12 +3189,15 @@ static void task_tick_numa(struct rq *rq, struct task_struct *curr)
 	period = (u64)curr->numa_scan_period * NSEC_PER_MSEC;
 
 	if (now > curr->node_stamp + period) {
+		DEBUG_COUNTER(task_tick_numa_cnt_2, 1)
 		if (!curr->node_stamp)
 			curr->numa_scan_period = task_scan_start(curr);
 		curr->node_stamp += period;
 
-		if (!time_before(jiffies, curr->mm->numa_next_scan))
+		if (!time_before(jiffies, curr->mm->numa_next_scan)){
+			DEBUG_COUNTER(task_tick_numa_cnt_3, 1)
 			task_work_add(curr, work, TWA_RESUME);
+		}
 	}
 }
 

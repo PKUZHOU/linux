@@ -1798,14 +1798,24 @@ bool vma_policy_mof(struct vm_area_struct *vma)
 		pol = vma->vm_ops->get_policy(vma, vma->vm_start);
 		if (pol && (pol->flags & MPOL_F_MOF))
 			ret = true;
+		if (pol)
+			printk("vm_ops, vma->start: %ld, vma->end: %ld, pol->flags: %hd\n", vma->vm_start, vma->vm_end, pol->flags);
+		else
+			printk("vm_ops get_policy failed, vma->start: %ld, vma->end: %ld\n", vma->vm_start, vma->vm_end);
 		mpol_cond_put(pol);
 
 		return ret;
 	}
 
 	pol = vma->vm_policy;
-	if (!pol)
+	if (!pol){
 		pol = get_task_policy(current);
+		printk("get_task_policy, vma->start: %ld, vma->end: %ld, pol->flags: %hd\n", vma->vm_start, vma->vm_end, pol->flags);
+	}
+	else{
+		printk("vm_policy, vma->start: %ld, vma->end: %ld, pol->flags: %hd\n", vma->vm_start, vma->vm_end, pol->flags);
+	}
+	
 
 	return pol->flags & MPOL_F_MOF;
 }

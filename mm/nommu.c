@@ -978,6 +978,8 @@ static int do_mmap_private(struct vm_area_struct *vma,
 		vma_set_anonymous(vma);
 	}
 
+	printk("debug: vma->vm_policy: %hd", vma->vm_policy->flags);
+
 	return 0;
 
 error_free:
