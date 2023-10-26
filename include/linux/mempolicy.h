@@ -294,4 +294,7 @@ static inline bool mpol_is_preferred_many(struct mempolicy *pol)
 }
 
 #endif /* CONFIG_NUMA */
+
+extern void check_toptier_balanced(void);
+
 #endif

@@ -56,6 +56,9 @@
 #include "stats.h"
 #include "autogroup.h"
 
+#include <trace/events/sched.h>
+#include <linux/mempolicy.h>
+
 /*
  * Targeted preemption latency for CPU-bound tasks:
  *
@@ -1483,10 +1486,10 @@ static bool pgdat_free_space_enough(struct pglist_data *pgdat)
 		if (!populated_zone(zone))
 			continue;
 
-		if (zone_watermark_ok(zone, 0,
-				      wmark_pages(zone, WMARK_PROMO) + enough_wmark,
-				      ZONE_MOVABLE, 0))
-			return true;
+		// if (zone_watermark_ok(zone, 0,
+		// 		      wmark_pages(zone, WMARK_PROMO) + enough_wmark,
+		// 		      ZONE_MOVABLE, 0))
+		// 	return true;
 	}
 	return false;
 }
@@ -11846,6 +11849,7 @@ void trigger_load_balance(struct rq *rq)
 		raise_softirq(SCHED_SOFTIRQ);
 
 	nohz_balancer_kick(rq);
+	check_toptier_balanced();
 }
 
 static void rq_online_fair(struct rq *rq)

@@ -3673,4 +3673,8 @@ madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
 }
 #endif
 
+#ifdef CONFIG_MIGRATION
+extern int demote_scale_factor;
+#endif
+
 #endif /* _LINUX_MM_H */

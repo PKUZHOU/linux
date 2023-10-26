@@ -4723,6 +4723,18 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
 		flags |= TNF_SHARED;
 
 	page_nid = page_to_nid(page);
+
+	/* Only migrate pages that are active on non-toptier node */
+	if ((sysctl_numa_balancing_mode & NUMA_BALANCING_MEMORY_TIERING) && !node_is_toptier(page_nid) && !PageActive(page)) {
+		count_vm_event(NR_DELAYED_PROMOTION);
+		count_vm_numa_event(NUMA_HINT_FAULTS);
+		if (page_nid == numa_node_id())
+			count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
+		mark_page_accessed(page);
+		pte_unmap_unlock(vmf->pte, vmf->ptl);
+		goto out;
+	}
+
 	/*
 	 * For memory tiering mode, cpupid of slow memory page is used
 	 * to record page access time.  So use default value.

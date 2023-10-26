@@ -102,6 +102,8 @@
 #include <linux/mmu_notifier.h>
 #include <linux/printk.h>
 #include <linux/swapops.h>
+#include <linux/memory-tiers.h>
+#include <linux/sched/sysctl.h>
 
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
@@ -3155,4 +3157,30 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 	if (!nodes_empty(nodes))
 		p += scnprintf(p, buffer + maxlen - p, ":%*pbl",
 			       nodemask_pr_args(&nodes));
+}
+
+
+void check_toptier_balanced(void)
+{
+	int nid;
+	int balanced;
+
+	count_vm_event(NR_CHECK_TOPTIER_BALANCED);
+
+	if (!(sysctl_numa_balancing_mode & NUMA_BALANCING_MEMORY_TIERING))
+		return;
+
+	for_each_node_state(nid, N_MEMORY) {
+		pg_data_t *pgdat = NODE_DATA(nid);
+
+		if (!node_is_toptier(nid))
+			continue;
+
+		balanced = pgdat_toptier_balanced(pgdat, 0, ZONE_MOVABLE);
+		if (!balanced) {
+			pgdat->kswapd_order = 0;
+			pgdat->kswapd_highest_zoneidx = ZONE_NORMAL;
+			wakeup_kswapd(pgdat->node_zones + ZONE_NORMAL, 0, 1, ZONE_NORMAL);
+		}
+	}
 }

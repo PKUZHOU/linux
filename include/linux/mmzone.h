@@ -649,7 +649,8 @@ enum zone_watermarks {
 	WMARK_MIN,
 	WMARK_LOW,
 	WMARK_HIGH,
-	WMARK_PROMO,
+	// WMARK_PROMO,
+	WMARK_DEMOTE,
 	NR_WMARK
 };
 
@@ -670,6 +671,7 @@ enum zone_watermarks {
 #define min_wmark_pages(z) (z->_watermark[WMARK_MIN] + z->watermark_boost)
 #define low_wmark_pages(z) (z->_watermark[WMARK_LOW] + z->watermark_boost)
 #define high_wmark_pages(z) (z->_watermark[WMARK_HIGH] + z->watermark_boost)
+#define demote_wmark_pages(z) (z->_watermark[WMARK_DEMOTE] + z->watermark_boost)
 #define wmark_pages(z, i) (z->_watermark[i] + z->watermark_boost)
 
 /* Fields and list protected by pagesets local_lock in page_alloc.c */
@@ -1411,6 +1413,8 @@ bool zone_watermark_ok(struct zone *z, unsigned int order,
 		unsigned int alloc_flags);
 bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
 		unsigned long mark, int highest_zoneidx);
+
+bool pgdat_toptier_balanced(pg_data_t *pgdat, int order, int zone_idx);
 /*
  * Memory initialization context, use to differentiate memory added by
  * the platform statically or via memory hotplug interface.

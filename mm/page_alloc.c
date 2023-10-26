@@ -37,6 +37,7 @@
 #include <linux/oom.h>
 #include <linux/topology.h>
 #include <linux/sysctl.h>
+#include <linux/sched/sysctl.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/memory_hotplug.h>
@@ -3878,6 +3879,9 @@ out:
 	/* Separate test+clear to avoid unnecessary atomics */
 	if (unlikely(test_bit(ZONE_BOOSTED_WATERMARK, &zone->flags))) {
 		clear_bit(ZONE_BOOSTED_WATERMARK, &zone->flags);
+		wakeup_kswapd(zone, 0, 0, zone_idx(zone));
+	}
+	else if(!pgdat_toptier_balanced(zone->zone_pgdat, order, zone_idx(zone))){
 		wakeup_kswapd(zone, 0, 0, zone_idx(zone));
 	}
 
@@ -8823,7 +8827,24 @@ static void __setup_per_zone_wmarks(void)
 		zone->watermark_boost = 0;
 		zone->_watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
 		zone->_watermark[WMARK_HIGH] = low_wmark_pages(zone) + tmp;
-		zone->_watermark[WMARK_PROMO] = high_wmark_pages(zone) + tmp;
+		// zone->_watermark[WMARK_PROMO] = high_wmark_pages(zone) + tmp;
+
+		if (sysctl_numa_balancing_mode & NUMA_BALANCING_MEMORY_TIERING) {
+			tmp = mult_frac(zone_managed_pages(zone), demote_scale_factor, 10000);
+
+			/*
+			 * Clamp demote watermark between twice high watermark
+			 * and max managed pages.
+			 */
+			if (tmp < 2 * zone->_watermark[WMARK_HIGH])
+				tmp = 2 * zone->_watermark[WMARK_HIGH];
+			if (tmp > zone_managed_pages(zone))
+				tmp = zone_managed_pages(zone);
+			zone->_watermark[WMARK_DEMOTE] = tmp;
+
+			zone->watermark_boost = 0;
+		}
+
 
 		spin_unlock_irqrestore(&zone->lock, flags);
 	}
