@@ -3178,6 +3178,7 @@ void check_toptier_balanced(void)
 
 		balanced = pgdat_toptier_balanced(pgdat, 0, ZONE_MOVABLE);
 		if (!balanced) {
+			count_vm_event(NR_EARLY_DEMOTE__CHECK_TOPTIER_BALANCED);
 			pgdat->kswapd_order = 0;
 			pgdat->kswapd_highest_zoneidx = ZONE_NORMAL;
 			wakeup_kswapd(pgdat->node_zones + ZONE_NORMAL, 0, 1, ZONE_NORMAL);

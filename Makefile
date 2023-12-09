@@ -2,7 +2,7 @@
 VERSION = 6
 PATCHLEVEL = 3
 SUBLEVEL = 0
-EXTRAVERSION = -TPP_reproduce
+EXTRAVERSION = -TPP_reproduce_2G_16G
 NAME = Hurr durr I'ma ninja sloth
 
 # *DOCUMENTATION*

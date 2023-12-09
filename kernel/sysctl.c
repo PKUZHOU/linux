@@ -2252,6 +2252,15 @@ static struct ctl_table vm_table[] = {
 		.extra2		= SYSCTL_THREE_THOUSAND,
 	},
 	{
+		.procname	= "demote_scale_factor",
+		.data		= &demote_scale_factor,
+		.maxlen		= sizeof(demote_scale_factor),
+		.mode		= 0644,
+		.proc_handler	= demote_scale_factor_sysctl_handler,
+		.extra1		= SYSCTL_ONE,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+	{
 		.procname	= "percpu_pagelist_high_fraction",
 		.data		= &percpu_pagelist_high_fraction,
 		.maxlen		= sizeof(percpu_pagelist_high_fraction),

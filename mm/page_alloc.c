@@ -3882,6 +3882,7 @@ out:
 		wakeup_kswapd(zone, 0, 0, zone_idx(zone));
 	}
 	else if(!pgdat_toptier_balanced(zone->zone_pgdat, order, zone_idx(zone))){
+		count_vm_event(NR_EARLY_DEMOTE__RMQUEUE);
 		wakeup_kswapd(zone, 0, 0, zone_idx(zone));
 	}
 
@@ -8957,6 +8958,21 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
 }
 
 int watermark_scale_factor_sysctl_handler(struct ctl_table *table, int write,
+		void *buffer, size_t *length, loff_t *ppos)
+{
+	int rc;
+
+	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	if (rc)
+		return rc;
+
+	if (write)
+		setup_per_zone_wmarks();
+
+	return 0;
+}
+
+int demote_scale_factor_sysctl_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
