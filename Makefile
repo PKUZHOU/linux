@@ -2,7 +2,7 @@
 VERSION = 6
 PATCHLEVEL = 3
 SUBLEVEL = 0
-EXTRAVERSION = -TPP_reproduce_2G_16G
+EXTRAVERSION = -TPP_reproduce_8G_16G_profile
 NAME = Hurr durr I'ma ninja sloth
 
 # *DOCUMENTATION*
@@ -554,7 +554,7 @@ LINUXINCLUDE    := \
 		$(USERINCLUDE)
 
 KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
-KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs \
+KBUILD_CFLAGS   := -Wall -Wno-error -Wundef -Werror=strict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common -fshort-wchar -fno-PIE \
 		   -Werror=implicit-function-declaration -Werror=implicit-int \
 		   -Werror=return-type -Wno-format-security -funsigned-char \
@@ -738,7 +738,7 @@ endif
 
 ifeq ($(KBUILD_EXTMOD),)
 # Objects we will link into vmlinux / subdirs we need to visit
-core-y		:=
+core-y		:= neomem/ 
 drivers-y	:=
 libs-y		:= lib/
 endif # KBUILD_EXTMOD

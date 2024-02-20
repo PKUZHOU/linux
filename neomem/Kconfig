@@ -1,0 +1,4 @@
+config NEOMEM
+	bool "Enable NeoMem Migration"
+    select NEOPROF
+    default n
